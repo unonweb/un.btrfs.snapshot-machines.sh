@@ -1,33 +1,40 @@
 #!/bin/bash
-# if [[ ${-} == *i* ]]; then echo "---"; fi 
-
-export SCRIPT_PATH="$(readlink -f "${BASH_SOURCE}")"
-export SCRIPT_DIR=$(dirname -- "$(readlink -f "${BASH_SOURCE}")")
-export SCRIPT_DIR_NAME=$(dirname -- "$(readlink -f "${SCRIPT_DIR}")")
-export SCRIPT_NAME=$(basename -- "$(readlink -f "${BASH_SOURCE}")")
-export SCRIPT_PARENT=$(dirname "${SCRIPT_DIR}")
-export CLEAR="\e[0m"
-export BOLD="\e[1m"
-export UNDERLINE="\e[4m"
-export RED="\e[31m"
-export GREEN="\e[32m"
-export YELLOW="\e[33m"
-export BLUE="\e[34m"
-export MAGENTA="\e[35m"
-export CYAN="\e[36m"
-export GREY="\e[38;5;248m"
 
 # STATIC
-PATH_CONFIG="${SCRIPT_PARENT}/config.cfg"
-BASE_DIR="/var/lib/machines"
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE}")"
+SCRIPT_DIR=$(dirname -- "$(readlink -f "${BASH_SOURCE}")")
+SCRIPT_DIR_NAME=$(dirname -- "$(readlink -f "${SCRIPT_DIR}")")
+SCRIPT_NAME=$(basename -- "$(readlink -f "${BASH_SOURCE}")")
+SCRIPT_PARENT=$(dirname "${SCRIPT_DIR}")
+CLEAR="\e[0m"
+BOLD="\e[1m"
+UNDERLINE="\e[4m"
+RED="\e[31m"
+GREEN="\e[32m"
+YELLOW="\e[33m"
+BLUE="\e[34m"
+MAGENTA="\e[35m"
+CYAN="\e[36m"
+GREY="\e[38;5;248m"
 
-# DEFAULTS
-# just in case $PATH_CONFIG cannot be read
-SNAPSHOTS_BASE="/.snapshots"
-SNAPSHOTS_MAX_NUM=7
+# CONFIG & DEFAULTS
+BASE_DIR="/var/lib/machines"
+PATH_CONFIG="${SCRIPT_PARENT}/config.cfg"
+
+if [[ -r ${PATH_CONFIG} ]]; then
+	source "${PATH_CONFIG}"
+	
+else
+	echo "<4>WARN: No config file found at ${PATH_CONFIG}. Using defaults ..."
+	# DEFAULTS
+	# just in case $PATH_CONFIG cannot be read
+	SNAPSHOTS_BASE="/.snapshots"
+	SNAPSHOTS_MAX_NUM=7
+	INCLUDE_MACHINES=()
+	EXCLUDE_MACHINES=()
+fi
 
 # IMPORTS
-source "${PATH_CONFIG}"
 source "${SCRIPT_DIR}/lib/is_value_in_array.sh"
 
 function is_btrfs_subvolume {
@@ -56,14 +63,14 @@ function cleanup_snapshots { # ${snapshot_path}
 	# check required vars
     for var in "${required[@]}"; do
         if [[ -z "${!var}" ]]; then
-            echo "ERROR: ${var} is not set or is empty." >&2
+            echo "<3>ERROR: ${var} is not set or is empty." >&2
 			return 1
         fi
     done
 	
 	# check
 	if [[ ${#snapshots[@]} -eq 0 ]]; then
-		echo "ERROR: No snapshots found in ${snapshots_dir}"
+		echo "<3>ERROR: No snapshots found in ${snapshots_dir}"
 		return 1
 	fi
 
@@ -71,7 +78,7 @@ function cleanup_snapshots { # ${snapshot_path}
         for snapshot in $(printf "%s\n" "${snapshots[@]}" | sort | head -n -${SNAPSHOTS_MAX_NUM}); do
 			# sort: oldest up, newest down
 			# head -n -3: exclude the last/the newest <num> files
-			echo "Removing old snapshot: ${snapshot}"
+			echo "<6>Removing old snapshot: ${snapshot}"
             rm -rf "${snapshot}"
         done
 	fi
@@ -85,7 +92,7 @@ function main {
 	local interactive_mode=0
 
 	if [ "${UID}" -ne 0 ]; then
-		echo "This script must be run as root."
+		echo "<3>ERROR: This script must be run as root."
 		exit 1
 	fi
 
