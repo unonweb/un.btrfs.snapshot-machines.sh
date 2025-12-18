@@ -1,4 +1,5 @@
 #!/bin/bash
+# if [[ ${-} == *i* ]]; then echo "---"; fi 
 
 export SCRIPT_PATH="$(readlink -f "${BASH_SOURCE}")"
 export SCRIPT_DIR=$(dirname -- "$(readlink -f "${BASH_SOURCE}")")
@@ -81,7 +82,6 @@ function main {
 	local machine_path
 	local machines=()
 	local machine
-	local subvol_name
 	local interactive_mode=0
 
 	if [ "${UID}" -ne 0 ]; then
@@ -101,53 +101,51 @@ function main {
 	mapfile -t machines < <(machinectl list --no-legend | awk '{print $1}')
 
 	echo
-	echo "Running machines: ${machines[@]}"
-	echo "Includes: ${INCLUDE_MACHINES[@]}"
-	echo "Excludes: ${EXCLUDE_MACHINES[@]}"
+	echo "<6>Machines: ${machines[@]}"
+	echo "<6>Included: ${INCLUDE_MACHINES[@]}"
+	echo "<6>Excluded: ${EXCLUDE_MACHINES[@]}"
 	echo
 
 	if [[ ${#machines[@]} -eq 0 ]]; then
-		echo "Exiting ..."
-		exit
+		echo "<3>ERROR: No machines found. Exiting ..."
+		exit 1
 	fi
 
 	for machine in "${machines[@]}"; do
-		local skip_iteration=false
+		
 		machine_path="${BASE_DIR}/${machine}"
 		
-		echo "---"
-		echo -e "<6> MACHINE: ${CYAN}${machine}${CLEAR}"
+		echo "<6>---"
+		echo -e "<6>MACHINE: ${CYAN}${machine}${CLEAR}"
 
 		if ! is_value_in_array ${machine} INCLUDE_MACHINES; then
-			echo "<6> Machine: ${machine} not included. Skipping ..."
+			echo "<6>${machine} not included. Skipping ..."
 			continue
 		fi
 
 		if is_value_in_array ${machine} EXCLUDE_MACHINES; then
-			echo "<6> Machine ${machine} excluded. Skipping ..."
+			echo "<6>${machine} excluded. Skipping ..."
 			continue
 		fi
 		
 		if [ ! -d "${machine_path}" ]; then
-			echo "<3> Not a directory: ${machine_path}"
-			echo "Skipping ..."
+			echo "<3>ERROR: Not a directory: ${machine_path}. Skipping ..."
 			continue
 		fi
 
 		if ! is_btrfs_subvolume ${machine_path}; then
-			echo "<3> Not a btrfs subvolume: ${machine_path}"
-			echo "Skipping ..."
+			echo "<3>ERROR: Not a btrfs subvolume: ${machine_path}. Skipping ..."
 			continue
 		fi
 
 		# subvolume name
-		subvol_name=""
+		local subvol_name=""
 		subvol_name=$(btrfs subvolume show "${machine_path}" 2>/dev/null | grep "Name:" | awk '{print $2}')
 		if [[ -z ${subvol_name} ]]; then
-			echo "<4> WARN: subvol_name is empty."
+			echo "<4>WARN: subvol_name is empty."
 		fi
 
-		echo -e "<6> SUBVOL: ${CYAN}${subvol_name}${CLEAR}"
+		echo -e "<6>SUBVOL: ${CYAN}${subvol_name}${CLEAR}"
 
 		# Stop machine
 		if ((interactive_mode)); then
@@ -159,27 +157,29 @@ function main {
 				continue
 			fi
 		else
-			echo "<6> Stopping container: ${machine} ..."
+			echo "<6>Stopping container: ${machine} ..."
 			machinectl stop "${machine}"
 		fi
 		
 		# Wait for the shutdown to complete
 		sleep 1
+		local skip_iteration=false
 		local wait_count=0
+		local wait_count_max=6 # -> 6*2=12s
 
 		while true; do
 			if ! machinectl status "${machine}" &>/dev/null; then
-				echo "<6> ${machine} has stopped."
+				echo "<6>${machine} has stopped."
 				break
 			fi
 			
-			if ((wait_count == 6)); then
-				echo "<3> Aborting operation on machine ${machine} after waiting ${wait_count} seconds."
+			if ((wait_count == ${wait_count_max})); then
+				echo "<3>ERROR: Aborting operation on machine ${machine} after waiting ${wait_count} seconds."
 				skip_iteration=true
 				break
 			fi
 			
-			echo "<6> Waiting for ${machine} to complete shutdown ... (${wait_count})"
+			echo "<6>Waiting for ${machine} to complete shutdown ... (${wait_count}/${wait_count_max})"
 			((wait_count++))
 			sleep 2
 		done
@@ -202,17 +202,17 @@ function main {
 		cleanup_snapshots "${snapshots_dir}"
 		
 		# Start the container again
-		echo "Starting up container again: ${machine} ..."
+		echo "<6>Starting up container again: ${machine} ..."
 		machinectl start "${machine}"
 		
 		if machinectl status "${machine}" &>/dev/null; then
-			echo "Successfully restarted machine ${machine}"
+			echo "<6>Successfully restarted machine ${machine}"
 		else
-			echo "ERROR: Failed to start machine ${machine}"
+			echo "<3>ERROR: Failed to start machine ${machine}"
 		fi
 	done
 
-	echo "Done"
+	echo "<6>Done"
 }
 
 main ${@}
