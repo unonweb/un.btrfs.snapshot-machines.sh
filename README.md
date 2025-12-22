@@ -23,3 +23,13 @@ NOTES
 - Look for systemd-nspawn machines in /var/lib/machines
 - Snapshot them
 - Clean-up old snapshots
+
+```sh
+local latest_src_snap_path=$(printf "%s\n" "${src_snaps[@]}" | sort | tail -n 1)
+local latest_src_snap_name=$(basename "${latest_src_snap_path}")
+```
+
+TO DO
+=====
+
+- Extend interactive mode
