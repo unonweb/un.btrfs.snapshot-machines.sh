@@ -23,7 +23,6 @@ PATH_CONFIG="${SCRIPT_PARENT}/config.cfg"
 
 if [[ -r ${PATH_CONFIG} ]]; then
 	source "${PATH_CONFIG}"
-	
 else
 	echo "<4>WARN: No config file found at ${PATH_CONFIG}. Using defaults ..."
 	# DEFAULTS
@@ -45,43 +44,6 @@ function is_btrfs_subvolume {
 function get_subvolume_name { # ${mountpoint}
 	local mountpoint=${1}
 	echo $(btrfs subvolume show "${mountpoint}" 2>/dev/null | grep "Name:" | awk '{print $2}')
-}
-
-function cleanup_snapshots { # ${snapshot_path}
-	# Function to clean up old snapshots
-	# If there are more than ${SNAPSHOTS_MAX_NUM} snapshots, delete the oldest ones
-	# must be run as root!
-	
-	local required=(
-		SNAPSHOTS_BASE
-		SNAPSHOTS_MAX_NUM
-	)
-	local snapshots_dir="${1}"
-	local snapshots=("${snapshots_dir}/"*)
-    local snapshot
-
-	# check required vars
-    for var in "${required[@]}"; do
-        if [[ -z "${!var}" ]]; then
-            echo "<3>ERROR: ${var} is not set or is empty." >&2
-			return 1
-        fi
-    done
-	
-	# check
-	if [[ ${#snapshots[@]} -eq 0 ]]; then
-		echo "<3>ERROR: No snapshots found in ${snapshots_dir}"
-		return 1
-	fi
-
-    if [ ${#snapshots[@]} -gt ${SNAPSHOTS_MAX_NUM} ]; then
-        for snapshot in $(printf "%s\n" "${snapshots[@]}" | sort | head -n -${SNAPSHOTS_MAX_NUM}); do
-			# sort: oldest up, newest down
-			# head -n -3: exclude the last/the newest <num> files
-			echo "<6>Removing old snapshot: ${snapshot}"
-            btrfs subvolume delete "${snapshot}"
-        done
-	fi
 }
 
 function main {
@@ -196,7 +158,7 @@ function main {
     	fi
 
 		# Snapshot
-		local snapshots_dir="${SNAPSHOTS_BASE}/${subvol_name:-${machine}}"
+		local snapshots_dir="${SNAPSHOTS_BASE}/${subvol_name:-${machine}}" # /.snapshots/@var-lib-machines-nextcloud-db
 		local snapshot_path="${snapshots_dir}/$(date +%Y-%m-%d-%H%M%S)" # /.snapshots/@var-lib-machines-nextcloud-db/2025-12-05-131237
 		
 		if [ ! -d "${snapshots_dir}" ]; then
@@ -204,9 +166,6 @@ function main {
 		fi
 
 		btrfs subvol snapshot "${machine_path}" "${snapshot_path}"
-
-		# Cleanup old snapshots
-		cleanup_snapshots "${snapshots_dir}"
 		
 		# Start the container again
 		echo "<6>Starting up container again: ${machine} ..."

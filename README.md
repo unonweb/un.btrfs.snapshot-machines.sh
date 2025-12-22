@@ -6,7 +6,6 @@ Vars:
 
 ```sh
 SNAPSHOTS_BASE="/.snapshots"
-SNAPSHOTS_MAX_NUM=7
 INCLUDE_MACHINES=()
 EXCLUDE_MACHINES=()
 ```
