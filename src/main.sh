@@ -80,12 +80,12 @@ function main {
 		echo "<6>---"
 		echo -e "<6>MACHINE: ${CYAN}${machine}${CLEAR}"
 
-		if ! is_value_in_array ${machine} INCLUDE_MACHINES; then
+		if ! is_value_in_array "${machine}" INCLUDE_MACHINES; then
 			echo "<6>${machine} not included. Skipping ..."
 			continue
 		fi
 
-		if is_value_in_array ${machine} EXCLUDE_MACHINES; then
+		if is_value_in_array "${machine}" EXCLUDE_MACHINES; then
 			echo "<6>${machine} excluded. Skipping ..."
 			continue
 		fi
