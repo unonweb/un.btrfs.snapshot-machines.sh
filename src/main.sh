@@ -34,17 +34,10 @@ else
 fi
 
 # IMPORTS
+# =======
 source "${SCRIPT_DIR}/lib/is_value_in_array.sh"
-
-function is_btrfs_subvolume {
-	# must be run as root!
-	btrfs subvolume show ${1} > /dev/null 2>&1
-}
-
-function get_subvolume_name { # ${mountpoint}
-	local mountpoint=${1}
-	echo $(btrfs subvolume show "${mountpoint}" 2>/dev/null | grep "Name:" | awk '{print $2}')
-}
+source "${SCRIPT_DIR}/lib/is_btrfs_subvolume.sh"
+source "${SCRIPT_DIR}/lib/get_subvolume_name.sh"
 
 function main {
 
@@ -102,7 +95,7 @@ function main {
 			continue
 		fi
 
-		if ! is_btrfs_subvolume ${machine_path}; then
+		if ! is_btrfs_subvolume "${machine_path}"; then
 			echo "<3>ERROR: Not a btrfs subvolume: ${machine_path}. Skipping ..."
 			continue
 		fi
